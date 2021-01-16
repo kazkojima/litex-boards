@@ -99,7 +99,7 @@ class _CRG(Module):
 
 class BaseSoC(SoCCore):
     mem_map = {**SoCCore.mem_map, **{"spiflash": 0xd0000000}}
-    def __init__(self, board="i5", revision="7.0", sys_clk_freq=60e6, with_ethernet=False, with_etherbone=False, eth_phy=0, use_internal_osc=False, sdram_rate="1:1", **kwargs):
+    def __init__(self, board="i5", revision="7.0", sys_clk_freq=60e6, with_ethernet=False, with_etherbone=False, local_ip="", remote_ip="", eth_phy=0, use_internal_osc=False, sdram_rate="1:1", **kwargs):
         board = board.lower()
         assert board in ["i5"]
         if board == "i5":
@@ -153,7 +153,21 @@ class BaseSoC(SoCCore):
             if with_etherbone:
                 self.add_etherbone(phy=self.ethphy)
 
-# Build --------------------------------------------------------------------------------------------
+        if local_ip:
+            local_ip = local_ip.split(".")
+            self.add_constant("LOCALIP1", int(local_ip[0]))
+            self.add_constant("LOCALIP2", int(local_ip[1]))
+            self.add_constant("LOCALIP3", int(local_ip[2]))
+            self.add_constant("LOCALIP4", int(local_ip[3]))
+
+        if remote_ip:
+            remote_ip = remote_ip.split(".")
+            self.add_constant("REMOTEIP1", int(remote_ip[0]))
+            self.add_constant("REMOTEIP2", int(remote_ip[1]))
+            self.add_constant("REMOTEIP3", int(remote_ip[2]))
+            self.add_constant("REMOTEIP4", int(remote_ip[3]))
+
+        # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on Colorlight i5")
@@ -164,6 +178,8 @@ def main():
     parser.add_argument("--sys-clk-freq",     default=60e6,             help="System clock frequency (default: 60MHz)")
     parser.add_argument("--with-ethernet",    action="store_true",      help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",   action="store_true",      help="Enable Etherbone support")
+    parser.add_argument("--remote-ip",      default="192.168.1.100",  help="Remote IP address of TFTP server")
+    parser.add_argument("--local-ip",       default="192.168.1.50",   help="Local IP address")
     parser.add_argument("--with-spi-sdcard",  action="store_true",	help="Enable SPI-mode SDCard support")
     parser.add_argument("--with-sdcard",      action="store_true",	help="Enable SDCard support")
     parser.add_argument("--with-spi",	      action="store_true",      help="SPI support")
@@ -181,6 +197,8 @@ def main():
         sys_clk_freq     = int(float(args.sys_clk_freq)),
         with_ethernet    = args.with_ethernet,
         with_etherbone   = args.with_etherbone,
+        local_ip         = args.local_ip,
+        remote_ip        = args.remote_ip,
         eth_phy          = args.eth_phy,
         use_internal_osc = args.use_internal_osc,
         sdram_rate       = args.sdram_rate,
