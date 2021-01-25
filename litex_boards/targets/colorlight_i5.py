@@ -37,10 +37,23 @@ from litex.soc.integration.builder import *
 
 from litex.soc.cores.led import LedChaser
 
+from litex.soc.interconnect.csr import *
+from litex.soc.cores.prbs import *
+
 from litedram.modules import M12L64322A
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
 
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
+
+# PRBS -------------------------------------------------------------------------------------------
+
+class _PRBSSource(Module, AutoCSR):
+    def __init__(self):
+        self.submodules.prbs = prbs = PRBS31Generator(32)
+        self.data = CSRStatus(32)
+        self.comb += [
+            self.data.status.eq(prbs.o)
+        ]
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -99,7 +112,7 @@ class _CRG(Module):
 
 class BaseSoC(SoCCore):
     mem_map = {**SoCCore.mem_map, **{"spiflash": 0xd0000000}}
-    def __init__(self, board="i5", revision="7.0", sys_clk_freq=60e6, with_ethernet=False, with_etherbone=False, local_ip="", remote_ip="", eth_phy=0, use_internal_osc=False, sdram_rate="1:1", **kwargs):
+    def __init__(self, board="i5", revision="7.0", sys_clk_freq=60e6, with_ethernet=False, with_etherbone=False, local_ip="", remote_ip="", eth_phy=0, use_internal_osc=False, sdram_rate="1:1", with_prbs=False, **kwargs):
         board = board.lower()
         assert board in ["i5"]
         if board == "i5":
@@ -167,6 +180,11 @@ class BaseSoC(SoCCore):
             self.add_constant("REMOTEIP3", int(remote_ip[2]))
             self.add_constant("REMOTEIP4", int(remote_ip[3]))
 
+        # PRBS -------------------------------------------------------------------------------------
+        if with_prbs:
+            self.submodules.prbs = _PRBSSource()
+            self.add_csr("prbs")
+
         # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -178,8 +196,8 @@ def main():
     parser.add_argument("--sys-clk-freq",     default=60e6,             help="System clock frequency (default: 60MHz)")
     parser.add_argument("--with-ethernet",    action="store_true",      help="Enable Ethernet support")
     parser.add_argument("--with-etherbone",   action="store_true",      help="Enable Etherbone support")
-    parser.add_argument("--remote-ip",      default="192.168.1.100",  help="Remote IP address of TFTP server")
-    parser.add_argument("--local-ip",       default="192.168.1.50",   help="Local IP address")
+    parser.add_argument("--remote-ip",        default="192.168.1.100",  help="Remote IP address of TFTP server")
+    parser.add_argument("--local-ip",         default="192.168.1.50",   help="Local IP address")
     parser.add_argument("--with-spi-sdcard",  action="store_true",	help="Enable SPI-mode SDCard support")
     parser.add_argument("--with-sdcard",      action="store_true",	help="Enable SDCard support")
     parser.add_argument("--with-spi",	      action="store_true",      help="SPI support")
@@ -187,6 +205,7 @@ def main():
     parser.add_argument("--use-internal-osc", action="store_true",      help="Use internal oscillator")
     parser.add_argument("--sdram-rate",       default="1:1",            help="SDRAM Rate: 1:1 Full Rate (default), 1:2 Half Rate")
     parser.add_argument("--l2-size",          default=8192, type=int,   help="L2 cache size")
+    parser.add_argument("--with-prbs",        action="store_true",      help="Enable PRBS support")
     builder_args(parser)
     soc_core_args(parser)
     trellis_args(parser)
@@ -203,6 +222,7 @@ def main():
         use_internal_osc = args.use_internal_osc,
         sdram_rate       = args.sdram_rate,
         l2_size		 = args.l2_size,
+        with_prbs        = args.with_prbs,
         **soc_core_argdict(args)
     )
     assert not (args.with_spi_sdcard and args.with_sdcard)
