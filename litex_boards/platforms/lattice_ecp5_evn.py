@@ -25,14 +25,14 @@ _io = [
     ("rst_n",        0, Pins("G2"),  IOStandard("LVCMOS33")),
 
     # Leds
-    ("user_led", 0, Pins("A13"), IOStandard("LVCMOS25")),
-    ("user_led", 1, Pins("A12"), IOStandard("LVCMOS25")),
-    ("user_led", 2, Pins("B19"), IOStandard("LVCMOS25")),
-    ("user_led", 3, Pins("A18"), IOStandard("LVCMOS25")),
-    ("user_led", 4, Pins("B18"), IOStandard("LVCMOS25")),
-    ("user_led", 5, Pins("C17"), IOStandard("LVCMOS25")),
-    ("user_led", 6, Pins("A17"), IOStandard("LVCMOS25")),
-    ("user_led", 7, Pins("B17"), IOStandard("LVCMOS25")),
+    ("user_led", 0, Pins("A13"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 1, Pins("A12"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 2, Pins("B19"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 3, Pins("A18"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 4, Pins("B18"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 5, Pins("C17"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 6, Pins("A17"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
+    ("user_led", 7, Pins("B17"), IOStandard("LVCMOS33"), Misc("OPENDRAIN=ON")),
 
     # Buttons
     ("user_dip_btn", 1, Pins("J1"),  IOStandard("LVCMOS33")),
@@ -50,6 +50,26 @@ _io = [
     ("serial", 0,
         Subsignal("rx", Pins("P2"), IOStandard("LVCMOS33")),
         Subsignal("tx", Pins("P3"), IOStandard("LVCMOS33")),
+    ),
+
+    # SDR SDRAM on connector J39 and J40
+    ("sdram_clock", 0, Pins("K5"), IOStandard("LVCMOS33")),
+    ("sdram", 0,
+        Subsignal("a",     Pins(
+            "B10 E7  A11 A19 K4  D14 P1  C14",
+            "L1  L2  A9  N2  L3")),
+        Subsignal("dq",    Pins(
+            "D15 B15 C15 B13 B20 D11 E11 B12",
+            "N4  M4  L4  J3  J4  H2  A15 K2")),
+        Subsignal("we_n",  Pins("D12")),
+        Subsignal("ras_n", Pins("C13")),
+        Subsignal("cas_n", Pins("E12")),
+        Subsignal("cs_n",  Pins("D13")),
+        Subsignal("cke",   Pins("M5")),
+        Subsignal("ba",    Pins("E13 A14")),
+        Subsignal("dm",    Pins("C12 N3")),
+        IOStandard("LVCMOS33"),
+        Misc("SLEWRATE=FAST"),
     ),
 
     # SPIFlash
