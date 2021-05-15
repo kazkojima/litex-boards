@@ -84,6 +84,49 @@ _io = [
         Subsignal("cs_n", Pins("R2"),          IOStandard("LVCMOS33")),
         Subsignal("dq",   Pins("W2 V2 Y2 W1"), IOStandard("LVCMOS33")),
     ),
+
+    # Fake ethphy
+    ("eth_clocks", 0,
+        Subsignal("tx", Pins("P19")),
+        Subsignal("rx", Pins("L20")),
+        IOStandard("LVCMOS25")
+    ),
+    ("eth", 0,
+        Subsignal("rst_n",   Pins("U17")),
+        Subsignal("mdio",    Pins("M19")),
+        Subsignal("mdc",     Pins("M20")),
+        Subsignal("rx_ctl",  Pins("U19")),
+        Subsignal("rx_data", Pins("T20 U20 T19 R18")),
+        Subsignal("tx_ctl",  Pins("R20")),
+        Subsignal("tx_data", Pins("N19 N20 P18 P20")),
+        IOStandard("LVCMOS25")
+    ),
+
+    # SerDes
+    ("serdes_tx", 0,
+        Subsignal("p", Pins("W4")),
+        Subsignal("n", Pins("W5")),
+    ),
+    ("serdes_rx", 0,
+        Subsignal("p", Pins("Y5")),
+        Subsignal("n", Pins("Y6")),
+    ),
+    ("serdes_refclk", 0,
+        Subsignal("p", Pins("Y11")),
+        Subsignal("n", Pins("Y12")),
+    ),
+
+    # Tap
+    ("tp0", 0, Pins("C6"), IOStandard("LVCMOS33")),
+    ("tp1", 0, Pins("C7"), IOStandard("LVCMOS33")),
+    ("tp2", 0, Pins("C8"), IOStandard("LVCMOS33")),
+
+    # Brigde
+    ("uart_bridge", 0,
+        Subsignal("tx", Pins("A7")),
+        Subsignal("rx", Pins("A8")),
+        IOStandard("LVCMOS33")
+    ),
 ]
 
 # Connectors ---------------------------------------------------------------------------------------
