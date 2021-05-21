@@ -19,7 +19,7 @@ from litex_boards.platforms import ecp5_evn
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
-#from litex.soc.cores.led import LedChaser
+from litex.soc.cores.led import LedChaser
 
 from litedram import modules as litedram_modules
 from litedram.phy import GENSDRPHY, HalfRateGENSDRPHY
@@ -29,7 +29,8 @@ from liteeth.phy.ecp5sgmii import LiteEthPHYSGMII
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform, sys_clk_freq, x5_clk_freq, sdram_rate="1:1"):
+    def __init__(self, platform, sys_clk_freq, x5_clk_freq,
+                 sdram_rate="1:1", ether_refclk_freq=None):
         self.rst = Signal()
         self.clock_domains.cd_sys = ClockDomain()
         if sdram_rate == "1:2":
@@ -63,10 +64,21 @@ class _CRG(Module):
         sdram_clk = ClockSignal("sys2x_ps" if sdram_rate == "1:2" else "sys_ps")
         self.specials += DDROutput(1, 0, platform.request("sdram_clock"), sdram_clk)
 
+        # Ether clock
+        if ether_refclk_freq is not None:
+            if x5_clk_freq is None:
+                self.clock_domains.cd_clk50 = ClockDomain(reset_less=True)
+                pll.create_clkout(self.cd_clk50, 50e6, margin=0)
+                clk50 = self.cd_clk50.clk
+            self.clock_domains.cd_eth_ref = ClockDomain(reset_less=True)
+            self.submodules.pll_eth = pll_eth = ECP5PLL()
+            pll_eth.register_clkin(clk50, x5_clk_freq or 50e6)
+            pll_eth.create_clkout(self.cd_eth_ref, ether_refclk_freq, margin=0)
+
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(50e6), x5_clk_freq=None, toolchain="trellis", sdram_module_cls="AS4C32M16", sdram_rate="1:1", with_ethernet=False, with_etherbone=False, local_ip="", remote_ip="", **kwargs):
+    def __init__(self, sys_clk_freq=int(50e6), x5_clk_freq=None, toolchain="trellis", sdram_module_cls="AS4C32M16", sdram_rate="1:1", with_ethernet=False, with_etherbone=False, local_ip="", remote_ip="", with_scope=False, **kwargs):
         platform = ecp5_evn.Platform(toolchain=toolchain)
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -76,7 +88,9 @@ class BaseSoC(SoCCore):
             **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
-        crg = _CRG(platform, sys_clk_freq, x5_clk_freq, sdram_rate=sdram_rate)
+        ether_refclk_freq=125e6 if with_ethernet or with_etherbone else None
+        crg = _CRG(platform, sys_clk_freq, x5_clk_freq,
+                   sdram_rate=sdram_rate, ether_refclk_freq=ether_refclk_freq)
         self.submodules.crg = crg
 
         # SDR SDRAM --------------------------------------------------------------------------------
@@ -95,7 +109,8 @@ class BaseSoC(SoCCore):
 
         # Ethernet / Etherbone ---------------------------------------------------------------------
         if with_ethernet or with_etherbone:
-            self.submodules.ethphy = ethphy = LiteEthPHYSGMII(platform)
+            ethphy = LiteEthPHYSGMII(platform, crg.cd_eth_ref.clk)
+            self.submodules.ethphy = ethphy
             self.add_csr("ethphy")
             if with_ethernet:
                 self.add_ethernet(phy=self.ethphy)
@@ -121,60 +136,59 @@ class BaseSoC(SoCCore):
         #    pads         = platform.request_all("user_led"),
         #    sys_clk_freq = sys_clk_freq)
         #self.add_csr("leds")
-
-        # Bridge
-        self.add_uartbone(name="uart_bridge")
+        #
+        # Debug ethphy
+        leds = platform.request_all("user_led")
+        self.comb += [
+            leds[0].eq(~ethphy.pcs.rx_enable),
+            leds[1].eq(~ethphy.pcs.tx_enable),
+            leds[2].eq(0),
+            leds[3].eq(0),
+            leds[4].eq(ethphy.pcs.init.pcs_rst),
+            leds[5].eq(ethphy.pcs.init.tx_lol),
+            leds[6].eq(ethphy.pcs.init.rx_lol),
+            leds[7].eq(ethphy.pcs.init.rx_los)
+        ]
 
         # Analyzer ---------------------------------------------------------------------------------
-        from litescope import LiteScopeAnalyzer
-        self.submodules.analyzer = LiteScopeAnalyzer([
-            #ethphy.pcs.init.tx_rst,
-            #ethphy.pcs.init.rx_rst,
-            #ethphy.pcs.init.pcs_rst,
-            #ethphy.pcs.init.ready,
-            #ethphy.pcs.init.tx_lol,
-            #ethphy.pcs.init.rx_lol,
-            #ethphy.pcs.init.rx_los,
-            #ethphy.pcs.rx_enable,
-            #ethphy.pcs.rx_ready,
-            #ethphy.pcs.rx_idle,
-            #ethphy.pcs.rx_align,
-            #ethphy.pcs.rx_data,
-            #ethphy.pcs.rx_k,
-            #ethphy.pcs.tx_enable,
-            #ethphy.pcs.tx_ready,
-            #ethphy.pcs.tx_idle,
-            #ethphy.pcs.tx_data,
-            #ethphy.pcs.tx_k,
-            #ethphy.pcs.source,
-            #ethphy.pcs.sink,
-            #ethphy.fsm,
-            #ethphy.abi.i,
-            #ethphy.abi.o,
-            #ethphy.ack.i,
-            #ethphy.ack.o,
-            #ethphy.ci.i,
-            #ethphy.ci.o,
-            ethphy.tx.fsm,
-            ethphy.tx.sink,
-            #ethphy.rx.fsm,
-            ethphy.rx.source,
-            #ethphy.rx.sop,
-            #ethphy.rx.soe,
-            #ethphy.button,
-            #ethphy.tx.config_stb,
-            #ethphy.tx.config_reg,
-            #ethphy.rx.seen_config_reg,
-            #ethphy.rx.seen_valid_ci,
-            #ethphy.rx.config_reg,
-            #ethphy.link_partner_adv_ability,
-            #ethphy.sgmii_remover.source,
-            #ethphy.sgmii_remover.sink,
-            #ethphy.sgmii_inserter.fsm,
-            #ethphy.sgmii_inserter.source,
-            #ethphy.sgmii_inserter.sink,
-        ], clock_domain = "eth_rx", depth=512)
-        self.add_csr("analyzer")
+        if with_scope:
+            from litescope import LiteScopeAnalyzer
+            # Use uart bridge to analyze ethphy
+            self.add_uartbone(name="uart_bridge")
+            self.submodules.analyzer = LiteScopeAnalyzer([
+                #ethphy.pcs.init.tx_rst,
+                #ethphy.pcs.init.rx_rst,
+                #ethphy.pcs.init.pcs_rst,
+                #ethphy.pcs.init.ready,
+                #ethphy.pcs.init.tx_lol,
+                #ethphy.pcs.init.rx_lol,
+                #ethphy.pcs.init.rx_los,
+                #ethphy.pcs.rx_enable,
+                #ethphy.pcs.rx_ready,
+                #ethphy.pcs.rx_idle,
+                #ethphy.pcs.rx_align,
+                #ethphy.pcs.rx_data,
+                #ethphy.pcs.rx_k,
+                #ethphy.pcs.tx_enable,
+                #ethphy.pcs.tx_ready,
+                #ethphy.pcs.tx_idle,
+                #ethphy.pcs.tx_data,
+                #ethphy.pcs.tx_k,
+                ethphy.pcs.source,
+                ethphy.pcs.sink,
+                #ethphy.fsm,
+                #ethphy.tx.fsm,
+                #ethphy.tx.sink,
+                #ethphy.rx.fsm,
+                #ethphy.rx.source,
+                #ethphy.tx.config_stb,
+                #ethphy.tx.config_reg,
+                #ethphy.rx.seen_config_reg,
+                #ethphy.rx.seen_valid_ci,
+                #ethphy.rx.config_reg,
+                #ethphy.link_partner_adv_ability,
+            ], clock_domain = "eth_rx", depth=512)
+            self.add_csr("analyzer")
 
 
 # Build --------------------------------------------------------------------------------------------
@@ -193,6 +207,7 @@ def main():
     ethopts.add_argument("--with-etherbone",  action="store_true",      help="Enable Etherbone support")
     parser.add_argument("--remote-ip",        default="192.168.1.100",  help="Remote IP address of TFTP server")
     parser.add_argument("--local-ip",         default="192.168.1.50",   help="Local IP address")
+    parser.add_argument("--with-scope",      action="store_true",      help="Enable LiteScope Analyzer support")
     builder_args(parser)
     soc_core_args(parser)
     args = parser.parse_args()
@@ -206,6 +221,7 @@ def main():
         with_etherbone   = args.with_etherbone,
         local_ip         = args.local_ip,
         remote_ip        = args.remote_ip,
+        with_scope       = args.with_scope,
         **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(run=args.build)

@@ -85,20 +85,10 @@ _io = [
         Subsignal("dq",   Pins("W2 V2 Y2 W1"), IOStandard("LVCMOS33")),
     ),
 
-    # Fake ethphy
-    ("eth_clocks", 0,
-        Subsignal("tx", Pins("P19")),
-        Subsignal("rx", Pins("L20")),
-        IOStandard("LVCMOS25")
-    ),
-    ("eth", 0,
-        Subsignal("rst_n",   Pins("U17")),
+    # Ether mdio/mdc
+    ("eth_md", 0,
         Subsignal("mdio",    Pins("M19")),
         Subsignal("mdc",     Pins("M20")),
-        Subsignal("rx_ctl",  Pins("U19")),
-        Subsignal("rx_data", Pins("T20 U20 T19 R18")),
-        Subsignal("tx_ctl",  Pins("R20")),
-        Subsignal("tx_data", Pins("N19 N20 P18 P20")),
         IOStandard("LVCMOS25")
     ),
 
